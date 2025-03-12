@@ -1,6 +1,6 @@
-import useSWR from 'swr';
-import { ApiResponse, Review } from '@/types';
-import { fetcher } from '@/utils/api';
+import useSWR from "swr";
+import { ApiResponse, Review } from "@/types";
+import { fetcher } from "./api";
 
 export function useReviews(phoneId: string) {
   const { data, error, isLoading } = useSWR<ApiResponse<Review[]>>(
@@ -11,6 +11,6 @@ export function useReviews(phoneId: string) {
   return {
     reviews: data?.data,
     isLoading,
-    error
+    error,
   };
 }
