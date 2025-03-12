@@ -15,3 +15,13 @@ logs/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# testing
+/coverage
+
+# next.js
+.next/
+/out/
+
+# production
+/build
