@@ -1,19 +1,24 @@
-import fastify, { FastifyInstance } from 'fastify';
-import autoload from '@fastify/autoload';
-import { TypeBoxTypeProvider } from '@fastify/type-provider-json-schema-to-ts';
-import { join } from 'path';
-import { config } from './config';
+import fastify, { FastifyInstance } from "fastify";
+import autoload from "@fastify/autoload";
+import { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
+import { join } from "path";
+import { config } from "./config";
+import fastifySwagger from "@fastify/swagger";
+import fastifySwaggerUi from "@fastify/swagger-ui";
+import fastifyCors from "@fastify/cors";
 
 export async function buildServer(): Promise<FastifyInstance> {
+  const isDevelopment = config.NODE_ENV === "development";
+
   const server = fastify({
     logger: {
       level: config.LOG_LEVEL,
-      transport: config.isDevelopment
+      transport: isDevelopment
         ? {
-            target: 'pino-pretty',
+            target: "pino-pretty",
             options: {
-              translateTime: 'HH:MM:ss Z',
-              ignore: 'pid,hostname',
+              translateTime: "HH:MM:ss Z",
+              ignore: "pid,hostname",
             },
           }
         : undefined,
@@ -21,60 +26,63 @@ export async function buildServer(): Promise<FastifyInstance> {
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   // Register plugins
-  await server.register(import('@fastify/cors'), {
+  await server.register(fastifyCors, {
     origin: config.CORS_ORIGIN,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   });
 
   // Register Swagger
-  await server.register(import('@fastify/swagger'), {
-    routePrefix: '/docs',
+  await server.register(fastifySwagger, {
     swagger: {
       info: {
-        title: 'Bazaarvoice Ratings API',
-        description: 'API for retrieving phone ratings and reviews from Bazaarvoice',
-        version: '1.0.0',
+        title: "Bazaarvoice Ratings API",
+        description:
+          "API for retrieving phone ratings and reviews from Bazaarvoice",
+        version: "1.0.0",
       },
       host: `${config.HOST}:${config.PORT}`,
-      schemes: ['http'],
-      consumes: ['application/json'],
-      produces: ['application/json'],
+      schemes: ["http"],
+      consumes: ["application/json"],
+      produces: ["application/json"],
     },
   });
 
-  await server.register(import('@fastify/swagger-ui'), {
-    routePrefix: '/docs',
+  // Register Swagger UI
+  await server.register(fastifySwaggerUi, {
+    routePrefix: "/docs", // Use routePrefix here
     uiConfig: {
-      docExpansion: 'list',
+      docExpansion: "list",
       deepLinking: false,
     },
+    staticCSP: true, // Enable Content Security Policy for static assets
+    transformStaticCSP: (header) => header, // Optional: Transform CSP header if needed
   });
 
   // Register routes
   await server.register(autoload, {
-    dir: join(__dirname, 'routes'),
-    options: { prefix: '/api' },
+    dir: join(__dirname, "routes"),
+    options: { prefix: "/api" },
   });
 
   // Register plugins
   await server.register(autoload, {
-    dir: join(__dirname, 'plugins'),
+    dir: join(__dirname, "plugins"),
     options: { config },
   });
 
   // Health check endpoint
-  server.get('/health', async () => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  server.get("/health", async () => {
+    return { status: "ok", timestamp: new Date().toISOString() };
   });
 
   // Error handler
   server.setErrorHandler((error, request, reply) => {
     server.log.error(error);
-    
+
     reply.status(error.statusCode || 500).send({
       success: false,
-      error: error.message || 'Internal Server Error',
-      data: null
+      error: error.message || "Internal Server Error",
+      data: null,
     });
   });
 
